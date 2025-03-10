@@ -110,24 +110,26 @@ endif()
 
 if(OPENVDB_USE_DELAYED_LOADING)
   find_package(Boost ${MINIMUM_BOOST_VERSION} REQUIRED COMPONENTS iostreams)
-
-  if(OPENVDB_FUTURE_DEPRECATION AND FUTURE_MINIMUM_BOOST_VERSION)
-    # The X.Y.Z boost version value isn't available until CMake 3.14
-    set(FULL_BOOST_VERSION "${Boost_MAJOR_VERSION}.${Boost_MINOR_VERSION}.${Boost_SUBMINOR_VERSION}")
-    if(${FULL_BOOST_VERSION} VERSION_LESS FUTURE_MINIMUM_BOOST_VERSION)
-      message(DEPRECATION "Support for Boost versions < ${FUTURE_MINIMUM_BOOST_VERSION} "
-        "is deprecated and will be removed.")
-    endif()
-  endif()
+else()
+  find_package(Boost ${MINIMUM_BOOST_VERSION} REQUIRED COMPONENTS headers)
 endif()
 
-find_package(TBB ${MINIMUM_TBB_VERSION} REQUIRED COMPONENTS tbb)
-if(OPENVDB_FUTURE_DEPRECATION AND FUTURE_MINIMUM_TBB_VERSION)
-  if(${TBB_VERSION} VERSION_LESS FUTURE_MINIMUM_TBB_VERSION)
-    message(DEPRECATION "Support for TBB versions < ${FUTURE_MINIMUM_TBB_VERSION} "
+if(OPENVDB_FUTURE_DEPRECATION AND FUTURE_MINIMUM_BOOST_VERSION)
+  # The X.Y.Z boost version value isn't available until CMake 3.14
+  set(FULL_BOOST_VERSION "${Boost_MAJOR_VERSION}.${Boost_MINOR_VERSION}.${Boost_SUBMINOR_VERSION}")
+  if(${FULL_BOOST_VERSION} VERSION_LESS FUTURE_MINIMUM_BOOST_VERSION)
+    message(DEPRECATION "Support for Boost versions < ${FUTURE_MINIMUM_BOOST_VERSION} "
       "is deprecated and will be removed.")
   endif()
 endif()
+
+# find_package(TBB ${MINIMUM_TBB_VERSION} REQUIRED COMPONENTS tbb)
+#if(OPENVDB_FUTURE_DEPRECATION AND FUTURE_MINIMUM_TBB_VERSION)
+#  if(${TBB_VERSION} VERSION_LESS FUTURE_MINIMUM_TBB_VERSION)
+#    message(DEPRECATION "Support for TBB versions < ${FUTURE_MINIMUM_TBB_VERSION} "
+#      "is deprecated and will be removed.")
+#  endif()
+#endif()
 
 if(USE_IMATH_HALF)
   find_package(Imath ${MINIMUM_IMATH_VERSION} REQUIRED CONFIG)
@@ -150,26 +152,26 @@ endif()
 
 if(USE_BLOSC)
   # Find Blosc libraries
-  find_package(Blosc ${MINIMUM_BLOSC_VERSION} REQUIRED)
-  if(Blosc_VERSION)
-    if(OPENVDB_FUTURE_DEPRECATION AND FUTURE_MINIMUM_BLOSC_VERSION)
-      if(${Blosc_VERSION} VERSION_LESS FUTURE_MINIMUM_BLOSC_VERSION)
-        message(DEPRECATION "Support for Blosc versions < ${FUTURE_MINIMUM_BLOSC_VERSION} "
-          "is deprecated and will be removed.")
-      endif()
-    endif()
-    # Print a warning if using of the blosc versions with regression issues
-    # with Blosc 1.5.0 caches.
-    if((Blosc_VERSION VERSION_GREATER_EQUAL 1.11.0 AND
-        Blosc_VERSION VERSION_LESS 1.14.0) OR
-       (Blosc_VERSION VERSION_GREATER_EQUAL 1.16.0 AND
-        Blosc_VERSION VERSION_LESS 1.16.2))
-      message(WARNING "The following Blosc versions are incompatible with the "
-        "recommended builds of OpenVDB: [1.11.0 -> 1.14.0) [1.16.0, 1.16.1]. "
-        "Found Blosc version '${Blosc_VERSION}' which falls in this range. We "
-        "strongly recommend using the new future minimum version '${FUTURE_MINIMUM_BLOSC_VERSION}'")
-    endif()
-  endif()
+  # find_package(Blosc ${MINIMUM_BLOSC_VERSION} REQUIRED)
+#  if(Blosc_VERSION)
+#    if(OPENVDB_FUTURE_DEPRECATION AND FUTURE_MINIMUM_BLOSC_VERSION)
+#      if(${Blosc_VERSION} VERSION_LESS FUTURE_MINIMUM_BLOSC_VERSION)
+#        message(DEPRECATION "Support for Blosc versions < ${FUTURE_MINIMUM_BLOSC_VERSION} "
+#          "is deprecated and will be removed.")
+#      endif()
+#    endif()
+#    # Print a warning if using of the blosc versions with regression issues
+#    # with Blosc 1.5.0 caches.
+#    if((Blosc_VERSION VERSION_GREATER_EQUAL 1.11.0 AND
+#        Blosc_VERSION VERSION_LESS 1.14.0) OR
+#       (Blosc_VERSION VERSION_GREATER_EQUAL 1.16.0 AND
+#        Blosc_VERSION VERSION_LESS 1.16.2))
+#      message(WARNING "The following Blosc versions are incompatible with the "
+#        "recommended builds of OpenVDB: [1.11.0 -> 1.14.0) [1.16.0, 1.16.1]. "
+#        "Found Blosc version '${Blosc_VERSION}' which falls in this range. We "
+#        "strongly recommend using the new future minimum version '${FUTURE_MINIMUM_BLOSC_VERSION}'")
+#    endif()
+#  endif()
 else()
   message(WARNING "Blosc support is disabled. It is strongly recommended to "
     "enable blosc for optimal builds of OpenVDB and to support compatible "
@@ -226,7 +228,7 @@ endif()
 # /usr/local
 
 if(USE_BLOSC)
-  list(APPEND OPENVDB_CORE_DEPENDENT_LIBS Blosc::blosc)
+  list(APPEND OPENVDB_CORE_DEPENDENT_LIBS blosc_static)
 endif()
 
 if(USE_BLOSC OR USE_ZLIB)
@@ -243,18 +245,21 @@ endif()
 # other headers.
 
 if(OPENVDB_USE_DELAYED_LOADING)
-  list(APPEND OPENVDB_CORE_DEPENDENT_LIBS Boost::iostreams)
-  if(WIN32)
-    # Boost headers contain #pragma commands on Windows which causes Boost
-    # libraries to be linked in automatically. Custom boost installations
-    # may find that these naming conventions don't always match and can
-    # cause linker errors. This option disables this feature of Boost. Note
-    # -DBOOST_ALL_NO_LIB can also be provided manually.
-    if(OPENVDB_DISABLE_BOOST_IMPLICIT_LINKING)
-        list(APPEND OPENVDB_CORE_DEPENDENT_LIBS
-          Boost::disable_autolinking  # add -DBOOST_ALL_NO_LIB
-        )
-    endif()
+  list(APPEND OPENVDB_CORE_DEPENDENT_LIBS Boost::iostreams Boost::numeric_conversion Boost::interprocess)
+else()
+  list(APPEND OPENVDB_CORE_DEPENDENT_LIBS Boost::headers)
+endif()
+
+if(WIN32)
+  # Boost headers contain #pragma commands on Windows which causes Boost
+  # libraries to be linked in automatically. Custom boost installations
+  # may find that these naming conventions don't always match and can
+  # cause linker errors. This option disables this feature of Boost. Note
+  # -DBOOST_ALL_NO_LIB can also be provided manually.
+  if(OPENVDB_DISABLE_BOOST_IMPLICIT_LINKING)
+      list(APPEND OPENVDB_CORE_DEPENDENT_LIBS
+        Boost::disable_autolinking  # add -DBOOST_ALL_NO_LIB
+      )
   endif()
 endif()
 
